@@ -29,16 +29,28 @@ while IFS= read -r repo_url; do
     # Modify the repo URL to include the token
     repo_with_token=$(echo "$repo_url" | sed -E "s|https://|https://$git_token@|g")
 
-    # Clone the repository
+    # Debug: Print the modified repo URL
     echo "Cloning repository: $repo_with_token"
+
+    # Clone the repository
     git clone "$repo_with_token" "$repo_name"
 
     # Check if the clone was successful
     if [ -d "$repo_name" ]; then
-      # Look for pom.xml in the repo
-      if [ -f "$repo_name/pom.xml" ]; then
-        echo "Found pom.xml in $repo_name. Copying..."
-        cp "$repo_name/pom.xml" "$output_dir/${repo_name}_pom.xml"
+      echo "Successfully cloned $repo_name"
+      
+      # Search for pom.xml in the entire repository
+      pom_file=$(find "$repo_name" -name "pom.xml" -type f)
+
+      if [ -n "$pom_file" ]; then
+        echo "Found pom.xml in $repo_name. Copying to separate folder..."
+
+        # Create a separate directory for each repository's pom.xml
+        repo_output_dir="$output_dir/$repo_name"
+        mkdir -p "$repo_output_dir"
+
+        # Copy the pom.xml file to the respective folder
+        cp "$pom_file" "$repo_output_dir/pom.xml"
       else
         echo "No pom.xml found in $repo_name"
       fi
@@ -46,7 +58,7 @@ while IFS= read -r repo_url; do
       # Remove the cloned repository after processing
       rm -rf "$repo_name"
     else
-      echo "Failed to clone $repo_name"
+      echo "Failed to clone $repo_name. Please check the repository URL or your GitHub token."
     fi
   fi
 done < "$file"
