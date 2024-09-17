@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# Check if a file and token are provided as arguments
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "Usage: $0 <file_with_repo_list> <git_token>"
+  exit 1
+fi
+
+# Read the input file containing repo URLs and the Git token
+file=$1
+git_token=$2
+output_dir="pom_files"
+
+# Check if the file exists
+if [ ! -f "$file" ]; then
+  echo "File not found!"
+  exit 1
+fi
+
+# Create the directory to store the pom.xml files
+mkdir -p "$output_dir"
+
+# Loop through each line in the file and process the repositories
+while IFS= read -r repo_url; do
+  if [[ -n "$repo_url" ]]; then  # Check if the line is not empty
+    # Extract repo name from the URL
+    repo_name=$(basename -s .git "$repo_url")
+
+    # Modify the repo URL to include the token
+    repo_with_token=$(echo "$repo_url" | sed -E "s|https://|https://$git_token@|g")
+
+    # Clone the repository
+    echo "Cloning repository: $repo_with_token"
+    git clone "$repo_with_token" "$repo_name"
+
+    # Check if the clone was successful
+    if [ -d "$repo_name" ]; then
+      # Look for pom.xml in the repo
+      if [ -f "$repo_name/pom.xml" ]; then
+        echo "Found pom.xml in $repo_name. Copying..."
+        cp "$repo_name/pom.xml" "$output_dir/${repo_name}_pom.xml"
+      else
+        echo "No pom.xml found in $repo_name"
+      fi
+
+      # Remove the cloned repository after processing
+      rm -rf "$repo_name"
+    else
+      echo "Failed to clone $repo_name"
+    fi
+  fi
+done < "$file"
+
+echo "All repositories processed."
+echo "pom.xml files are stored in the '$output_dir' directory."
