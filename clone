@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Check if a file and token are provided as arguments
+# Check if the file and token are provided as arguments
 if [ -z "$1" ] || [ -z "$2" ]; then
-  echo "Usage: $0 <file_with_repo_list> <git_token>"
+  echo "Usage: $0 <file_with_repo_and_branch_list> <git_token>"
   exit 1
 fi
 
-# Read the input file containing repo URLs and the Git token
+# Read the input file containing repo URLs and branch names, and the Git token
 file=$1
 git_token=$2
 output_dir="pom_files"
@@ -20,24 +20,25 @@ fi
 # Create the directory to store the pom.xml files
 mkdir -p "$output_dir"
 
-# Loop through each line in the file and process the repositories
-while IFS= read -r repo_url; do
-  if [[ -n "$repo_url" ]]; then  # Check if the line is not empty
+# Loop through each line in the file and process the repositories with their respective branches
+while IFS=' ' read -r repo_url branch_name; do
+  if [[ -n "$repo_url" && -n "$branch_name" ]]; then  # Check if the line is not empty and has both repo and branch
     # Extract repo name from the URL
     repo_name=$(basename -s .git "$repo_url")
 
     # Modify the repo URL to include the token
     repo_with_token=$(echo "$repo_url" | sed -E "s|https://|https://$git_token@|g")
 
-    # Debug: Print the modified repo URL
+    # Debug: Print the modified repo URL and branch
     echo "Cloning repository: $repo_with_token"
+    echo "Cloning branch: $branch_name"
 
-    # Clone the repository
-    git clone "$repo_with_token" "$repo_name"
+    # Clone the specified branch
+    git clone -b "$branch_name" "$repo_with_token" "$repo_name"
 
     # Check if the clone was successful
     if [ -d "$repo_name" ]; then
-      echo "Successfully cloned $repo_name"
+      echo "Successfully cloned $repo_name (branch: $branch_name)"
       
       # Search for pom.xml in the entire repository
       pom_file=$(find "$repo_name" -name "pom.xml" -type f)
@@ -60,6 +61,8 @@ while IFS= read -r repo_url; do
     else
       echo "Failed to clone $repo_name. Please check the repository URL or your GitHub token."
     fi
+  else
+    echo "Invalid line in input file: $repo_url $branch_name"
   fi
 done < "$file"
 
